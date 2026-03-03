@@ -1,6 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap');
 
 :root {
+  --kelme-bg-main: #f2f7f4;
+  --kelme-bg-soft: #ecf5f0;
+  --kelme-bg-warm: #f6f2ea;
+  --kelme-ink: #1a2a24;
+  --kelme-ink-muted: #5f726b;
+  --kelme-accent: #c8ff69;
+  --kelme-accent-strong: #87d62d;
+  --kelme-border: #d4e4dc;
   font-family: 'Sora', 'Avenir Next', 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -22,7 +30,9 @@ body {
   background:
     radial-gradient(circle at 8% 6%, rgba(170, 231, 210, 0.45), transparent 34%),
     radial-gradient(circle at 88% 18%, rgba(247, 216, 186, 0.5), transparent 32%),
-    linear-gradient(160deg, #f3f6ef 0%, #edf7f2 52%, #f8f3eb 100%);
+    radial-gradient(circle at 72% 82%, rgba(200, 255, 105, 0.18), transparent 40%),
+    linear-gradient(160deg, var(--kelme-bg-main) 0%, var(--kelme-bg-soft) 52%, var(--kelme-bg-warm) 100%);
+  color: var(--kelme-ink);
 }
 
 #root {
