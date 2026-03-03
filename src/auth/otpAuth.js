@@ -2,13 +2,43 @@ const AUTH_SESSION_KEY = 'kelme_erp_auth_session'
 const OTP_CHALLENGE_KEY = 'kelme_erp_otp_challenge'
 
 const OTP_LENGTH = 6
-const OTP_VALID_FOR_MS = 5 * 60 * 1000
-const OTP_RESEND_COOLDOWN_MS = 30 * 1000
+const OTP_API_BASE = '/api/auth'
 
-const toEmail = (value) => String(value).trim().toLowerCase()
+const toEmail = (value) => String(value || '').trim().toLowerCase()
+const normalizeOtp = (value) => String(value || '').replace(/\D/g, '').slice(0, OTP_LENGTH)
 
-const generateOtp = () => {
-  return String(Math.floor(100000 + Math.random() * 900000))
+const parseJson = async (response) => {
+  try {
+    return await response.json()
+  } catch {
+    return {}
+  }
+}
+
+const postOtpApi = async (path, body) => {
+  try {
+    const response = await fetch(`${OTP_API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+    const payload = await parseJson(response)
+    if (!response.ok) {
+      return {
+        ok: false,
+        message: payload.message || 'OTP request failed. Please retry.',
+        ...payload,
+      }
+    }
+
+    return payload
+  } catch {
+    return {
+      ok: false,
+      message: 'Unable to reach OTP service. Please retry in a moment.',
+    }
+  }
 }
 
 export const isValidEmail = (email) => {
@@ -34,13 +64,28 @@ export const clearAuthSession = () => {
   localStorage.removeItem(AUTH_SESSION_KEY)
 }
 
+const saveOtpChallengeMeta = ({ email, expiresAt, resendAvailableAt }) => {
+  sessionStorage.setItem(
+    OTP_CHALLENGE_KEY,
+    JSON.stringify({
+      email,
+      expiresAt,
+      resendAvailableAt,
+    }),
+  )
+}
+
+export const clearOtpChallenge = () => {
+  sessionStorage.removeItem(OTP_CHALLENGE_KEY)
+}
+
 export const getOtpChallenge = () => {
   try {
     const raw = sessionStorage.getItem(OTP_CHALLENGE_KEY)
     if (!raw) return null
 
     const parsed = JSON.parse(raw)
-    if (!parsed?.email || !parsed?.otp || !parsed?.expiresAt || !parsed?.resendAvailableAt) {
+    if (!parsed?.email || !parsed?.expiresAt || !parsed?.resendAvailableAt) {
       return null
     }
 
@@ -50,73 +95,56 @@ export const getOtpChallenge = () => {
   }
 }
 
-export const sendOtpToEmail = (email) => {
+export const sendOtpToEmail = async (email) => {
   const normalizedEmail = toEmail(email)
 
   if (!isValidEmail(normalizedEmail)) {
     return { ok: false, message: 'Please enter a valid email address.' }
   }
 
-  const otp = generateOtp()
-  const now = Date.now()
+  const result = await postOtpApi('/send-otp', { email: normalizedEmail })
+  if (!result.ok) {
+    return result
+  }
 
-  const challenge = {
+  saveOtpChallengeMeta({
     email: normalizedEmail,
-    otp,
-    createdAt: now,
-    expiresAt: now + OTP_VALID_FOR_MS,
-    resendAvailableAt: now + OTP_RESEND_COOLDOWN_MS,
-  }
-
-  sessionStorage.setItem(OTP_CHALLENGE_KEY, JSON.stringify(challenge))
-
-  if (import.meta.env.DEV) {
-    console.info(`[DEV][OTP] ${normalizedEmail} -> ${otp}`)
-  }
+    expiresAt: result.expiresAt,
+    resendAvailableAt: result.resendAvailableAt,
+  })
 
   return {
     ok: true,
-    expiresAt: challenge.expiresAt,
-    resendAvailableAt: challenge.resendAvailableAt,
+    expiresAt: result.expiresAt,
+    resendAvailableAt: result.resendAvailableAt,
   }
 }
 
-export const verifyOtpCode = (email, otpInput) => {
-  const challenge = getOtpChallenge()
+export const verifyOtpCode = async (email, otpInput) => {
   const normalizedEmail = toEmail(email)
-  const normalizedOtp = String(otpInput).replace(/\D/g, '').slice(0, OTP_LENGTH)
+  const normalizedOtp = normalizeOtp(otpInput)
 
-  if (!challenge) {
-    return { ok: false, message: 'OTP request not found. Please send OTP again.' }
-  }
-
-  if (challenge.email !== normalizedEmail) {
-    return { ok: false, message: 'Email does not match OTP request. Use the same email.' }
-  }
-
-  if (Date.now() > challenge.expiresAt) {
-    sessionStorage.removeItem(OTP_CHALLENGE_KEY)
-    return { ok: false, message: 'OTP expired. Please send a new OTP.' }
+  if (!isValidEmail(normalizedEmail)) {
+    return { ok: false, message: 'Please enter a valid email address.' }
   }
 
   if (normalizedOtp.length !== OTP_LENGTH) {
     return { ok: false, message: 'OTP must be a 6-digit code.' }
   }
 
-  if (challenge.otp !== normalizedOtp) {
-    return { ok: false, message: 'Invalid OTP. Please check and retry.' }
-  }
-
-  const session = {
+  const result = await postOtpApi('/verify-otp', {
     email: normalizedEmail,
-    verifiedAt: new Date().toISOString(),
-    token: `otp-${Math.random().toString(36).slice(2, 12)}`,
+    otp: normalizedOtp,
+  })
+
+  if (!result.ok) {
+    return result
   }
 
-  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session))
-  sessionStorage.removeItem(OTP_CHALLENGE_KEY)
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(result.session))
+  clearOtpChallenge()
 
-  return { ok: true, session }
+  return { ok: true, session: result.session }
 }
 
 export const getOtpMeta = () => {

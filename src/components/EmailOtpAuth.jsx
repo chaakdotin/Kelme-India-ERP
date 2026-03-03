@@ -9,8 +9,10 @@ function EmailOtpAuth({ onAuthenticated }) {
   const [step, setStep] = useState(initialMeta ? 'otp' : 'email')
   const [feedback, setFeedback] = useState({ type: '', message: '' })
   const [meta, setMeta] = useState(initialMeta)
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
 
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     const normalizedEmail = email.trim().toLowerCase()
 
     if (!isValidEmail(normalizedEmail)) {
@@ -18,7 +20,10 @@ function EmailOtpAuth({ onAuthenticated }) {
       return
     }
 
-    const result = sendOtpToEmail(normalizedEmail)
+    setIsSendingOtp(true)
+    const result = await sendOtpToEmail(normalizedEmail)
+    setIsSendingOtp(false)
+
     if (!result.ok) {
       setFeedback({ type: 'error', message: result.message })
       return
@@ -39,8 +44,10 @@ function EmailOtpAuth({ onAuthenticated }) {
     })
   }
 
-  const handleVerifyOtp = () => {
-    const result = verifyOtpCode(email, otp)
+  const handleVerifyOtp = async () => {
+    setIsVerifyingOtp(true)
+    const result = await verifyOtpCode(email, otp)
+    setIsVerifyingOtp(false)
 
     if (!result.ok) {
       setFeedback({ type: 'error', message: result.message })
@@ -80,7 +87,7 @@ function EmailOtpAuth({ onAuthenticated }) {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="you@company.com"
-            disabled={step === 'otp'}
+            disabled={step === 'otp' || isSendingOtp || isVerifyingOtp}
             autoComplete="email"
           />
         </div>
@@ -99,6 +106,7 @@ function EmailOtpAuth({ onAuthenticated }) {
               value={otp}
               onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="Enter 6-digit OTP"
+              disabled={isSendingOtp || isVerifyingOtp}
               autoComplete="one-time-code"
             />
             {meta && (
@@ -118,25 +126,25 @@ function EmailOtpAuth({ onAuthenticated }) {
 
         <div className="auth-actions">
           {step === 'email' ? (
-            <button type="button" className="primary-btn" onClick={handleSendOtp}>
-              Send OTP
+            <button type="button" className="primary-btn" onClick={handleSendOtp} disabled={isSendingOtp}>
+              {isSendingOtp ? 'Sending...' : 'Send OTP'}
             </button>
           ) : (
             <>
-              <button type="button" className="primary-btn" onClick={handleVerifyOtp}>
-                Verify OTP
+              <button type="button" className="primary-btn" onClick={handleVerifyOtp} disabled={isVerifyingOtp}>
+                {isVerifyingOtp ? 'Verifying...' : 'Verify OTP'}
               </button>
-              <button type="button" className="secondary-btn" onClick={handleResendOtp}>
-                Resend OTP
+              <button type="button" className="secondary-btn" onClick={handleResendOtp} disabled={isSendingOtp}>
+                {isSendingOtp ? 'Sending...' : 'Resend OTP'}
               </button>
-              <button type="button" className="ghost-btn" onClick={handleChangeEmail}>
+              <button type="button" className="ghost-btn" onClick={handleChangeEmail} disabled={isSendingOtp || isVerifyingOtp}>
                 Change Email
               </button>
             </>
           )}
         </div>
 
-        {import.meta.env.DEV && <p className="dev-note">Dev mode: OTP value browser console me print hota hai.</p>}
+        <p className="dev-note">OTP backend API se email provider ke through send hota hai (SMTP/Resend).</p>
       </article>
     </section>
   )

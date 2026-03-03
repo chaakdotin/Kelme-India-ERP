@@ -1,16 +1,79 @@
-# React + Vite
+# Kelme India ERP (React + OTP Email Auth)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This app now includes:
+- React dashboard frontend (Vite)
+- Node OTP auth API (`/api/auth/send-otp`, `/api/auth/verify-otp`)
+- Real email OTP delivery via SMTP or Resend
 
-Currently, two official plugins are available:
+## 1) Install
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+```
 
-## React Compiler
+## 2) Configure email provider
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Copy env template:
 
-## Expanding the ESLint configuration
+```bash
+cp .env.example .env
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Then set either:
+- SMTP variables (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM_EMAIL`)
+- or Resend variables (`RESEND_API_KEY`, `RESEND_FROM_EMAIL`)
+
+You can force provider with:
+
+```env
+OTP_EMAIL_PROVIDER=smtp
+```
+
+or
+
+```env
+OTP_EMAIL_PROVIDER=resend
+```
+
+`OTP_EMAIL_PROVIDER=auto` tries SMTP first, then Resend.
+
+## 3) Run locally
+
+```bash
+npm run dev
+```
+
+This starts:
+- API on `http://127.0.0.1:8787`
+- Frontend on `http://127.0.0.1:5173`
+
+Vite proxy forwards `/api/*` to the API.
+
+## 4) OTP login flow
+
+1. Enter email and click `Send OTP`
+2. OTP arrives in email
+3. Enter 6-digit OTP and click `Verify OTP`
+
+## API quick reference
+
+### POST `/api/auth/send-otp`
+Body:
+
+```json
+{ "email": "user@example.com" }
+```
+
+### POST `/api/auth/verify-otp`
+Body:
+
+```json
+{ "email": "user@example.com", "otp": "123456" }
+```
+
+## Notes
+
+- OTP expires in 5 minutes.
+- Resend cooldown is 30 seconds.
+- Max 5 invalid attempts per OTP challenge.
+- For local fallback only (not production), set `ALLOW_CONSOLE_OTP=true` to print OTP in server console.
