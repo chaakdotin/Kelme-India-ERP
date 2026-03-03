@@ -1693,3 +1693,276 @@
     justify-content: flex-start;
   }
 }
+
+/* Mobile hardening pass */
+@media (max-width: 760px) {
+  .erp-shell {
+    padding: 0.75rem;
+  }
+
+  .shell-header {
+    padding: 0.72rem;
+    border-radius: 14px;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .shell-actions {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.38rem;
+  }
+
+  .session-email {
+    max-width: 100%;
+  }
+
+  .shell-nav {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.1rem;
+    scrollbar-width: thin;
+  }
+
+  .nav-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .verify-meta {
+    font-size: 0.69rem;
+  }
+
+  .page-wrap.neo-page-wrap {
+    border-radius: 16px;
+    padding: 0.72rem;
+  }
+
+  .neo-page-hero {
+    border-radius: 13px;
+    padding: 0.62rem;
+  }
+
+  .page-heading h1 {
+    font-size: 1.18rem;
+  }
+
+  .page-heading p {
+    font-size: 0.8rem;
+  }
+
+  .stats-grid,
+  .stats-grid.mini,
+  .stats-grid.xl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.58rem;
+  }
+
+  .filter-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .filter-block {
+    min-width: 0;
+  }
+
+  .neo-dashboard-frame {
+    border-radius: 16px;
+    padding: 0.62rem;
+    gap: 0.62rem;
+  }
+
+  .neo-sidebar {
+    border-radius: 13px;
+    padding: 0.6rem;
+  }
+
+  .neo-menu {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.34rem;
+  }
+
+  .neo-menu-item {
+    text-align: center;
+    font-size: 0.69rem;
+    padding: 0.4rem 0.32rem;
+  }
+
+  .neo-search-pill {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .neo-toolbar-right {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+
+  .neo-chip {
+    text-align: center;
+  }
+
+  .neo-title-xl {
+    font-size: 1.22rem;
+  }
+
+  .neo-hero {
+    border-radius: 14px;
+    padding: 0.68rem;
+  }
+
+  .neo-hero-head h2 {
+    font-size: 0.93rem;
+  }
+
+  .neo-hero-head p {
+    font-size: 0.72rem;
+  }
+
+  .neo-donut-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .neo-donut {
+    width: 122px;
+    height: 122px;
+  }
+
+  .neo-donut-core {
+    width: 78px;
+    height: 78px;
+  }
+
+  .neo-panel {
+    border-radius: 14px;
+    padding: 0.62rem 0.66rem;
+  }
+
+  .assistant-orb {
+    width: 102px;
+    height: 102px;
+  }
+
+  .assistant-alert-btn {
+    width: 100%;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.2rem;
+  }
+
+  .data-table,
+  .neo-data-table {
+    min-width: 680px;
+    font-size: 0.76rem;
+  }
+
+  .data-table.compact {
+    min-width: 560px;
+  }
+
+  .neo-dashboard-wrap .neo-data-table {
+    min-width: 620px;
+  }
+
+  .data-table th,
+  .data-table td,
+  .neo-data-table th,
+  .neo-data-table td {
+    white-space: nowrap;
+  }
+
+  .data-table td .line,
+  .data-table td .subline {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 520px) {
+  .erp-shell {
+    padding: 0.58rem;
+  }
+
+  .title {
+    font-size: 1.24rem;
+  }
+
+  .shell-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .shell-actions .live-sync-pill,
+  .shell-actions .session-email,
+  .shell-actions .test-order-feedback {
+    grid-column: 1 / -1;
+  }
+
+  .shell-actions .live-sync-pill,
+  .shell-actions .alert-btn,
+  .shell-actions .test-order-btn,
+  .shell-actions .logout-btn {
+    display: inline-flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .shell-actions .session-email {
+    width: 100%;
+    max-width: none;
+  }
+
+  .shell-nav {
+    margin-top: 0.1rem;
+  }
+
+  .stats-grid,
+  .stats-grid.mini,
+  .stats-grid.xl,
+  .filter-row,
+  .assistant-buttons,
+  .neo-toolbar-right {
+    grid-template-columns: 1fr;
+  }
+
+  .neo-page-chip-row {
+    max-width: 100%;
+  }
+
+  .auth-card {
+    width: 100%;
+    padding: 0.9rem 0.8rem;
+  }
+
+  .auth-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .primary-btn,
+  .secondary-btn,
+  .ghost-btn {
+    width: 100%;
+  }
+
+  .toast-stack {
+    right: 0.55rem;
+    left: 0.55rem;
+    bottom: 0.55rem;
+    width: auto;
+  }
+}
