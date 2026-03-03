@@ -2,52 +2,12 @@ const AUTH_SESSION_KEY = 'kelme_erp_auth_session'
 const OTP_CHALLENGE_KEY = 'kelme_erp_otp_challenge'
 
 const OTP_LENGTH = 6
-const OTP_API_BASE = '/api/auth'
+const OTP_VALID_FOR_MS = 5 * 60 * 1000
+const OTP_RESEND_COOLDOWN_MS = 30 * 1000
+const TEST_OTP_CODE = '123456'
 
 const toEmail = (value) => String(value || '').trim().toLowerCase()
 const normalizeOtp = (value) => String(value || '').replace(/\D/g, '').slice(0, OTP_LENGTH)
-
-const parseResponsePayload = async (response) => {
-  const raw = await response.text()
-  if (!raw) return {}
-
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return { raw }
-  }
-}
-
-const postOtpApi = async (path, body) => {
-  try {
-    const response = await fetch(`${OTP_API_BASE}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-
-    const payload = await parseResponsePayload(response)
-    if (!response.ok) {
-      const fallbackMessage =
-        response.status >= 500
-          ? 'OTP service unavailable. Please run full stack with `npm run dev`.'
-          : `OTP request failed (${response.status}). Please retry.`
-
-      return {
-        ok: false,
-        message: payload.message || fallbackMessage,
-        ...payload,
-      }
-    }
-
-    return payload
-  } catch {
-    return {
-      ok: false,
-      message: 'Unable to reach OTP service. Please retry in a moment.',
-    }
-  }
-}
 
 export const isValidEmail = (email) => {
   const value = toEmail(email)
@@ -70,6 +30,7 @@ export const loadAuthSession = () => {
 
 export const clearAuthSession = () => {
   localStorage.removeItem(AUTH_SESSION_KEY)
+  clearOtpChallenge()
 }
 
 const saveOtpChallengeMeta = ({ email, expiresAt, resendAvailableAt }) => {
@@ -110,23 +71,32 @@ export const sendOtpToEmail = async (email) => {
     return { ok: false, message: 'Please enter a valid email address.' }
   }
 
-  const result = await postOtpApi('/send-otp', { email: normalizedEmail })
-  if (!result.ok) {
-    return result
+  const now = Date.now()
+  const activeChallenge = getOtpChallenge()
+
+  if (activeChallenge?.email === normalizedEmail && now < activeChallenge.resendAvailableAt) {
+    return {
+      ok: false,
+      message: 'Please wait before requesting another OTP.',
+      resendAvailableAt: activeChallenge.resendAvailableAt,
+    }
   }
+
+  const expiresAt = now + OTP_VALID_FOR_MS
+  const resendAvailableAt = now + OTP_RESEND_COOLDOWN_MS
 
   saveOtpChallengeMeta({
     email: normalizedEmail,
-    expiresAt: result.expiresAt,
-    resendAvailableAt: result.resendAvailableAt,
+    expiresAt,
+    resendAvailableAt,
   })
 
   return {
     ok: true,
-    expiresAt: result.expiresAt,
-    resendAvailableAt: result.resendAvailableAt,
-    delivery: result.delivery,
-    devOtp: result.devOtp,
+    expiresAt,
+    resendAvailableAt,
+    delivery: 'fixed-test',
+    devOtp: TEST_OTP_CODE,
   }
 }
 
@@ -142,19 +112,30 @@ export const verifyOtpCode = async (email, otpInput) => {
     return { ok: false, message: 'OTP must be a 6-digit code.' }
   }
 
-  const result = await postOtpApi('/verify-otp', {
-    email: normalizedEmail,
-    otp: normalizedOtp,
-  })
-
-  if (!result.ok) {
-    return result
+  const challenge = getOtpChallenge()
+  if (!challenge || challenge.email !== normalizedEmail) {
+    return { ok: false, message: 'OTP request not found. Please send OTP again.' }
   }
 
-  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(result.session))
+  if (Date.now() > challenge.expiresAt) {
+    clearOtpChallenge()
+    return { ok: false, message: 'OTP expired. Please send a new OTP.' }
+  }
+
+  if (normalizedOtp !== TEST_OTP_CODE) {
+    return { ok: false, message: 'Invalid OTP. Use 123456 for testing.' }
+  }
+
+  const session = {
+    email: normalizedEmail,
+    verifiedAt: new Date().toISOString(),
+    token: `test-otp-${Date.now().toString(36)}`,
+  }
+
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session))
   clearOtpChallenge()
 
-  return { ok: true, session: result.session }
+  return { ok: true, session }
 }
 
 export const getOtpMeta = () => {

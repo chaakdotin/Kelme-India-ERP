@@ -149,7 +149,7 @@ function EmailOtpAuth({ onAuthenticated }) {
           )}
         </div>
 
-        <p className="dev-note">OTP backend API se email provider ke through send hota hai (SMTP/Resend).</p>
+        <p className="dev-note">Testing mode only: login OTP is fixed to 123456.</p>
       </article>
     </section>
   )
