@@ -38,9 +38,14 @@ function EmailOtpAuth({ onAuthenticated }) {
       resendAvailableAt: result.resendAvailableAt,
     })
 
+    const otpSentMessage =
+      result.devOtp
+        ? `Testing OTP mode active. Use code ${result.devOtp} to continue.`
+        : 'OTP sent on your email. Enter 6-digit code to continue.'
+
     setFeedback({
       type: 'success',
-      message: 'OTP sent on your email. Enter 6-digit code to continue.',
+      message: otpSentMessage,
     })
   }
 

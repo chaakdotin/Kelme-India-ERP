@@ -7,11 +7,14 @@ const OTP_API_BASE = '/api/auth'
 const toEmail = (value) => String(value || '').trim().toLowerCase()
 const normalizeOtp = (value) => String(value || '').replace(/\D/g, '').slice(0, OTP_LENGTH)
 
-const parseJson = async (response) => {
+const parseResponsePayload = async (response) => {
+  const raw = await response.text()
+  if (!raw) return {}
+
   try {
-    return await response.json()
+    return JSON.parse(raw)
   } catch {
-    return {}
+    return { raw }
   }
 }
 
@@ -23,11 +26,16 @@ const postOtpApi = async (path, body) => {
       body: JSON.stringify(body),
     })
 
-    const payload = await parseJson(response)
+    const payload = await parseResponsePayload(response)
     if (!response.ok) {
+      const fallbackMessage =
+        response.status >= 500
+          ? 'OTP service unavailable. Please run full stack with `npm run dev`.'
+          : `OTP request failed (${response.status}). Please retry.`
+
       return {
         ok: false,
-        message: payload.message || 'OTP request failed. Please retry.',
+        message: payload.message || fallbackMessage,
         ...payload,
       }
     }
@@ -117,6 +125,8 @@ export const sendOtpToEmail = async (email) => {
     ok: true,
     expiresAt: result.expiresAt,
     resendAvailableAt: result.resendAvailableAt,
+    delivery: result.delivery,
+    devOtp: result.devOtp,
   }
 }
 

@@ -18,14 +18,20 @@ const OTP_MAX_ATTEMPTS = 5
 
 const AUTH_API_PORT = Number(process.env.AUTH_API_PORT || 8787)
 const OTP_EMAIL_PROVIDER = String(process.env.OTP_EMAIL_PROVIDER || 'auto').toLowerCase()
-const ALLOW_CONSOLE_OTP = ['1', 'true', 'yes', 'on'].includes(String(process.env.ALLOW_CONSOLE_OTP || 'false').toLowerCase())
+const IS_PRODUCTION = process.env.NODE_ENV === 'production'
+const ALLOW_CONSOLE_OTP = parseBoolean(process.env.ALLOW_CONSOLE_OTP, !IS_PRODUCTION)
+const USE_FIXED_TEST_OTP = parseBoolean(process.env.USE_FIXED_TEST_OTP, !IS_PRODUCTION)
+const FIXED_TEST_OTP = String(process.env.TEST_OTP_CODE || '123456')
+  .replace(/\D/g, '')
+  .slice(0, OTP_LENGTH)
+  .padStart(OTP_LENGTH, '0')
 
 const toEmail = (value) => String(value || '').trim().toLowerCase()
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail(email))
 const normalizeOtp = (value) => String(value || '').replace(/\D/g, '').slice(0, OTP_LENGTH)
 const generateOtp = () => String(crypto.randomInt(0, 1000000)).padStart(OTP_LENGTH, '0')
 
-const parseBoolean = (value, fallback = false) => {
+function parseBoolean(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase())
 }
@@ -74,6 +80,18 @@ const smtpTransport = isSmtpConfigured
   : null
 
 const isResendConfigured = Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL)
+
+if (USE_FIXED_TEST_OTP) {
+  console.warn(`[OTP] Fixed testing OTP mode enabled. OTP code: ${FIXED_TEST_OTP}`)
+}
+
+if (!USE_FIXED_TEST_OTP && !isSmtpConfigured && !isResendConfigured) {
+  if (ALLOW_CONSOLE_OTP) {
+    console.warn('[OTP] Email provider not configured. Falling back to console OTP for local development.')
+  } else {
+    console.warn('[OTP] Email provider not configured. Configure SMTP/Resend or enable ALLOW_CONSOLE_OTP=true.')
+  }
+}
 
 const sendOtpWithSmtp = async ({ to, subject, text, html }) => {
   if (!smtpTransport) {
@@ -165,7 +183,7 @@ const sendOtpEmail = async ({ email, otp, expiresAt }) => {
 
   if (ALLOW_CONSOLE_OTP) {
     console.info(`[DEV][OTP-FALLBACK] ${email} -> ${otp}`)
-    return { provider: 'console' }
+    return { provider: 'console', devOtp: otp }
   }
 
   throw lastError || new Error('No email provider configured. Configure SMTP or Resend variables.')
@@ -208,7 +226,7 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
   const challenge = {
     email,
-    otp: generateOtp(),
+    otp: USE_FIXED_TEST_OTP ? FIXED_TEST_OTP : generateOtp(),
     createdAt: now,
     expiresAt: now + OTP_VALID_FOR_MS,
     resendAvailableAt: now + OTP_RESEND_COOLDOWN_MS,
@@ -217,27 +235,44 @@ app.post('/api/auth/send-otp', async (req, res) => {
 
   otpChallenges.set(email, challenge)
 
-  try {
-    await sendOtpEmail({
-      email,
-      otp: challenge.otp,
-      expiresAt: challenge.expiresAt,
-    })
-  } catch (error) {
-    otpChallenges.delete(email)
-    console.error('OTP send failed:', error)
-    res.status(503).json({
-      ok: false,
-      message: 'Unable to send OTP email right now. Please check email provider configuration.',
-    })
-    return
+  let delivery = null
+  if (USE_FIXED_TEST_OTP) {
+    delivery = { provider: 'fixed-test', devOtp: challenge.otp }
+  } else {
+    try {
+      delivery = await sendOtpEmail({
+        email,
+        otp: challenge.otp,
+        expiresAt: challenge.expiresAt,
+      })
+    } catch (error) {
+      otpChallenges.delete(email)
+      console.error('OTP send failed:', error)
+      const message =
+        error?.message === 'No email provider configured. Configure SMTP or Resend variables.'
+          ? 'Email OTP provider is not configured. Add SMTP/Resend env vars or set ALLOW_CONSOLE_OTP=true for local testing.'
+          : 'Unable to send OTP email right now. Please retry in a moment.'
+
+      res.status(503).json({
+        ok: false,
+        message,
+      })
+      return
+    }
   }
 
-  res.json({
+  const responsePayload = {
     ok: true,
     expiresAt: challenge.expiresAt,
     resendAvailableAt: challenge.resendAvailableAt,
-  })
+    delivery: delivery.provider,
+  }
+
+  if (!IS_PRODUCTION && delivery.devOtp) {
+    responsePayload.devOtp = delivery.devOtp
+  }
+
+  res.json(responsePayload)
 })
 
 app.post('/api/auth/verify-otp', (req, res) => {

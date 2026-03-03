@@ -37,6 +37,13 @@ OTP_EMAIL_PROVIDER=resend
 
 `OTP_EMAIL_PROVIDER=auto` tries SMTP first, then Resend.
 
+For quick local testing without email setup:
+
+```env
+USE_FIXED_TEST_OTP=true
+TEST_OTP_CODE=123456
+```
+
 ## 3) Run locally
 
 ```bash
@@ -76,4 +83,6 @@ Body:
 - OTP expires in 5 minutes.
 - Resend cooldown is 30 seconds.
 - Max 5 invalid attempts per OTP challenge.
-- For local fallback only (not production), set `ALLOW_CONSOLE_OTP=true` to print OTP in server console.
+- In local testing mode (`USE_FIXED_TEST_OTP=true`), OTP is fixed to `123456` and email delivery is skipped.
+- In development, if SMTP/Resend is not configured, local console fallback is enabled and OTP is printed in server logs.
+- For real email delivery, configure SMTP/Resend in `.env` and set `ALLOW_CONSOLE_OTP=false`.
